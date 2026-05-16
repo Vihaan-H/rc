@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RC Race Control & Scoreboard</title>
+    <style>
+        /* CSS Variables for Dark Theme */
+        :root {
+            --bg-base: #0d1117;
+            --bg-panel: #161b22;
+            --bg-input: #21262d;
+            --border-color: #30363d;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #238636;
+            --accent-green-hover: #2ea043;
+            --accent-red: #da3633;
+            --accent-red-hover: #f85149;
+            --accent-yellow: #d29922;
+            --podium-gold: #ffd700;
+            --podium-silver: #c0c0c0;
+            --podium-bronze: #cd7f32;
+            --font-main: system-ui, -apple-system, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
+
+        /* Global Reset & Base Styles */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: var(--bg-base); color: var(--text-main); font-family: var(--font-main); line-height: 1.5; padding: 20px; }
+        h1, h2, h3 { color: #ffffff; }
+        button, input, select { font-family: inherit; }
+        
+        /* Layout & Containers */
+        .app-container { max-width: 1400px; margin: 0 auto; }
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: block; }
+        .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px; }
+        .panel { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 24px; }
+        @media (max-width: 900px) { .panel-grid { grid-template-columns: 1fr; } }
+
+        /* Typography & UI Elements */
+        .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px; }
+        .timer-display { font-family: var(--font-mono); font-size: 5rem; font-weight: bold; text-align: center; color: var(--accent-blue); background: var(--bg-base); border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; margin: 20px 0; text-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
+        .timer-display.running { color: var(--accent-green); text-shadow: 0 0 10px rgba(35, 134, 54, 0.4); }
+        .penalty-tag { color: var(--accent-yellow); font-size: 1.5rem; text-align: center; margin-top: -10px; margin-bottom: 20px; font-weight: bold; min-height: 36px; }
+        
+        /* Forms & Inputs */
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input[type="text"], input[type="number"], select { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; border-radius: 6px; font-size: 1rem; transition: border-color 0.2s; }
+        input:focus, select:focus { outline: none; border-color: var(--accent-blue); }
+        
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; font-size: 1rem; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); }
+        .btn:hover:not(:disabled) { background: var(--border-color); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--accent-blue); color: #fff; border-color: transparent; }
+        .btn-primary:hover:not(:disabled) { background: #318bf8; }
+        .btn-success { background: var(--accent-green); color: #fff; border-color: transparent; }
+        .btn-success:hover:not(:disabled) { background: var(--accent-green-hover); }
+        .btn-danger { background: var(--accent-red); color: #fff; border-color: transparent; }
+        .btn-danger:hover:not(:disabled) { background: var(--accent-red-hover); }
+        .btn-warning { background: var(--accent-yellow); color: #000; border-color: transparent; }
+        .btn-warning:hover:not(:disabled) { background: #e3a826; }
+        .btn-icon { padding: 8px 12px; font-size: 1.25rem; }
+        .button-group { display: flex; gap: 12px; }
+        .button-group .btn { flex: 1; }
+
+        /* Tables & Lists */
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { font-size: 0.875rem; color: var(--text-muted); text-transform: uppercase; background: var(--bg-input); }
+        td { font-size: 1.1rem; }
+        .td-right { text-align: right; }
+        .font-mono { font-family: var(--font-mono); }
+        
+        /* Podium Highlights */
+        .rank-badge { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 50%; background: var(--bg-input); font-weight: bold; font-size: 0.9rem; }
+        tr.podium-1 td { background: rgba(255, 215, 0, 0.1); }
+        tr.podium-1 .rank-badge { background: var(--podium-gold); color: #000; }
+        tr.podium-2 td { background: rgba(192, 192, 192, 0.05); }
+        tr.podium-2 .rank-badge { background: var(--podium-silver); color: #000; }
+        tr.podium-3 td { background: rgba(205, 127, 50, 0.05); }
+        tr.podium-3 .rank-badge { background: var(--podium-bronze); color: #000; }
+
+        /* Scoreboard Specifics */
+        .player-row { display: flex; align-items: center; gap: 16px; padding: 12px; background: var(--bg-input); border-radius: 6px; margin-bottom: 12px; }
+        .player-name-wrapper { flex: 1; display: flex; gap: 12px; align-items: center; }
+        .player-name-wrapper input { border: none; background: transparent; padding: 4px 8px; font-size: 1.25rem; font-weight: bold; border-bottom: 2px solid transparent; border-radius: 0; }
+        .player-name-wrapper input:focus { border-bottom-color: var(--accent-blue); background: rgba(255,255,255,0.05); }
+        .score-controls { display: flex; align-items: center; gap: 16px; }
+        .score-display { font-family: var(--font-mono); font-size: 2rem; font-weight: bold; min-width: 60px; text-align: center; }
+
+        /* Collapsible Log */
+        details { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; margin-top: 24px; }
+        summary { padding: 16px; font-weight: bold; cursor: pointer; user-select: none; color: var(--text-muted); outline: none; }
+        .log-list { max-height: 300px; overflow-y: auto; padding: 0 16px 16px 16px; }
+        .log-entry { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--border-color); font-size: 0.9rem; }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); margin-right: 12px; font-family: var(--font-mono); }
+        .log-amount { font-weight: bold; }
+        .log-amount.positive { color: var(--accent-green); }
+        .log-amount.negative { color: var(--accent-red); }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Main Menu Grid */
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 40px; }
+        .menu-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .menu-card:hover { border-color: var(--accent-blue); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .menu-card h2 { font-size: 2rem; margin-bottom: 16px; color: var(--accent-blue); }
+        .menu-card p { font-size: 1.1rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <div id="view-menu" class="view-section active">
+        <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="font-size: 3rem; letter-spacing: 2px;">RC EVENT CONTROL</h1>
+            <p style="color: var(--text-muted); font-size: 1.2rem;">Select operational mode</p>
+        </div>
+        <div class="menu-grid">
+            <div class="menu-card" onclick="Navigation.show('view-timer')">
+                <h2>RACE TIMER</h2>
+                <p>Single-driver time trials, penalty management, and fastest-lap leaderboards.</p>
+            </div>
+            <div class="menu-card" onclick="Navigation.show('view-scoreboard')">
+                <h2>POINTS SCOREBOARD</h2>
+                <p>Multi-player live standings, manual point adjustments, and achievement tracking.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-timer" class="view-section">
+        <div class="header-bar">
+            <div>
+                <h1>Race Timer Control</h1>
+                <p style="color: var(--text-muted);">Single-Driver Precision Timing</p>
+            </div>
+            <button class="btn" onclick="Navigation.show('view-menu')">← Back to Menu</button>
+        </div>
+
+        <div class="panel-grid">
+            <div class="panel">
+                <div class="form-group">
+                    <label>Driver Registration</label>
+                    <input type="text" id="t-driver-name" placeholder="Enter driver name to begin..." autocomplete="off">
+                </div>
+
+                <div class="timer-display" id="t-clock">00:00.000</div>
+                <div class="penalty-tag" id="t-penalty-display"></div>
+
+                <div class="button-group" style="margin-bottom: 24px;">
+                    <button id="btn-t-start" class="btn btn-success" onclick="TimerMode.start()">Start</button>
+                    <button id="btn-t-pause" class="btn btn-primary" onclick="TimerMode.pause()" disabled>Pause</button>
+                    <button id="btn-t-stop" class="btn btn-danger" onclick="TimerMode.stop()" disabled>Stop & Save</button>
+                </div>
+
+                <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 24px;">
+                    <label>Live Penalty Application</label>
+                    <div class="button-group">
+                        <button class="btn btn-warning" onclick="TimerMode.addPenalty(3)">+ 3 Sec Penalty</button>
+                        <button class="btn btn-warning" onclick="TimerMode.addPenalty(5)">+ 5 Sec Penalty</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="header-bar" style="margin-bottom: 16px; padding-bottom: 16px;">
+                    <div class="form-group" style="margin: 0; flex: 1; margin-right: 16px;">
+                        <label>Session Logic</label>
+                        <select id="t-session-toggle" onchange="TimerMode.renderLeaderboard()">
+                            <option value="best">Cumulative Best Time (Multi-Run)</option>
+                            <option value="all">Single-Run Mode (All Attempts)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-danger" onclick="TimerMode.resetSession()">Reset Board</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table id="t-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">Rank</th>
+                                <th>Driver</th>
+                                <th class="td-right">Raw Time</th>
+                                <th class="td-right">Penalties</th>
+                                <th class="td-right">Final Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="t-table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-scoreboard" class="view-section">
+        <div class="header-bar">
+            <div>
+                <h1>Points Scoreboard</h1>
+                <p style="color: var(--text-muted);">Live Multiplayer Tracking</p>
+            </div>
+            <button class="btn" onclick="Navigation.show('view-menu')">← Back to Menu</button>
+        </div>
+
+        <div class="panel-grid">
+            <div class="panel">
+                <div class="header-bar" style="margin-bottom: 20px;">
+                    <div style="display: flex; gap: 12px; align-items: flex-end;">
+                        <div class="form-group" style="margin: 0; width: 120px;">
+                            <label>Point +/- Step</label>
+                            <input type="number" id="s-increment" value="1" min="1">
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="ScoreMode.addPlayer()">+ Add Player</button>
+                </div>
+
+                <div id="s-players-container" style="max-height: 400px; overflow-y: auto; padding-right: 8px;">
+                    </div>
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 24px; margin-top: 24px;">
+                    <label>Apply Custom Achievement / Penalty</label>
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                        <select id="s-bonus-player" style="flex: 1;"></select>
+                        <input type="number" id="s-bonus-amount" placeholder="Pts" style="width: 80px;" value="5">
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" id="s-bonus-reason" placeholder="Event reason (e.g., Fastest Lap)" style="flex: 2;">
+                        <button class="btn btn-primary" onclick="ScoreMode.applyBonus()">Apply Event</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="header-bar" style="margin-bottom: 16px;">
+                    <h3 style="margin: 0;">Live Standings</h3>
+                    <button class="btn btn-danger" onclick="ScoreMode.resetScores()">Reset Scores</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table id="s-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">Rank</th>
+                                <th>Driver / Team Name</th>
+                                <th class="td-right">Total Points</th>
+                            </tr>
+                        </thead>
+                        <tbody id="s-table-body">
+                            </tbody>
+                    </table>
+                </div>
+
+                <details>
+                    <summary>View Point Adjustment History</summary>
+                    <div class="log-list" id="s-history-log">
+                        </div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+/**
+ * UTILITY: LocalStorage Wrapper
+ */
+const Storage = {
+    get: (key, defaultVal) => {
+        try {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : defaultVal;
+        } catch (e) {
+            console.error(`Error reading ${key} from LocalStorage`, e);
+            return defaultVal;
+        }
+    },
+    set: (key, value) => {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.error(`Error saving ${key} to LocalStorage`, e);
+        }
+    },
+    escapeHTML: (str) => {
+        const div = document.createElement('div');
+        div.innerText = str;
+        return div.innerHTML;
+    }
+};
+
+/**
+ * UTILITY: Navigation Controller
+ */
+const Navigation = {
+    show: (viewId) => {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        
+        // Ensure UI stays synced when switching back to a view
+        if (viewId === 'view-timer') TimerMode.updateUI();
+        if (viewId === 'view-scoreboard') ScoreMode.renderAll();
+    }
+};
+
+/**
+ * MODULE 1: Race Timer Logic
+ */
+const TimerMode = (() => {
+    const STORAGE_KEY = 'RCA_TimerData';
+    let data = Storage.get(STORAGE_KEY, { runs: [] });
+    
+    // Volatile State (In-Memory)
+    let isRunning = false;
+    let isPaused = false;
+    let startTime = 0;
+    let accumulatedTime = 0;
+    let currentPenaltiesSec = 0;
+    let timerInterval = null;
+
+    // DOM Elements
+    const els = {
+        driver: document.getElementById('t-driver-name'),
+        clock: document.getElementById('t-clock'),
+        penalty: document.getElementById('t-penalty-display'),
+        btnStart: document.getElementById('btn-t-start'),
+        btnPause: document.getElementById('btn-t-pause'),
+        btnStop: document.getElementById('btn-t-stop'),
+        sessionMode: document.getElementById('t-session-toggle'),
+        tbody: document.getElementById('t-table-body')
+    };
+
+    const formatMS = (ms) => {
+        const totalMs = Math.max(0, ms);
+        const minutes = Math.floor(totalMs / 60000);
+        const seconds = Math.floor((totalMs % 60000) / 1000);
+        const milliseconds = Math.floor(totalMs % 1000);
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+    };
+
+    const updateClockTick = () => {
+        const now = performance.now();
+        const currentMs = accumulatedTime + (now - startTime);
+        els.clock.textContent = formatMS(currentMs);
+    };
+
+    const updateUI = () => {
+        els.btnStart.disabled = isRunning;
+        els.btnPause.disabled = !isRunning && !isPaused;
+        els.btnStop.disabled = (!isRunning && !isPaused) && accumulatedTime === 0;
+        
+        if (isRunning) els.clock.classList.add('running');
+        else els.clock.classList.remove('running');
+
+        els.penalty.textContent = currentPenaltiesSec > 0 ? `+ ${currentPenaltiesSec} Sec Penalty Applied` : '';
+        els.btnPause.textContent = isPaused ? 'Resume' : 'Pause';
+    };
+
+    const start = () => {
+        if (!els.driver.value.trim()) {
+            alert('Please enter a driver name before starting the timer.');
+            els.driver.focus();
+            return;
+        }
+        
+        if (isPaused) {
+            // Resuming
+            isPaused = false;
+            startTime = performance.now();
+        } else {
+            // Fresh start
+            accumulatedTime = 0;
+            currentPenaltiesSec = 0;
+            startTime = performance.now();
+        }
+        
+        isRunning = true;
+        els.driver.disabled = true;
+        timerInterval = setInterval(updateClockTick, 47); // ~21fps update for UI efficiency
+        updateUI();
+    };
+
+    const pause = () => {
+        if (isRunning) {
+            clearInterval(timerInterval);
+            accumulatedTime += (performance.now() - startTime);
+            isRunning = false;
+            isPaused = true;
+        } else if (isPaused) {
+            start();
+        }
+        updateUI();
+    };
+
+    const stop = () => {
+        if (isRunning) {
+            clearInterval(timerInterval);
+            accumulatedTime += (performance.now() - startTime);
+        }
+        
+        const driverName = els.driver.value.trim() || 'Unknown Driver';
+        const rawMs = accumulatedTime;
+        const penaltyMs = currentPenaltiesSec * 1000;
+        const finalMs = rawMs + penaltyMs;
+
+        const runRecord = {
+            id: Date.now().toString(),
+            driver: driverName,
+            rawMs: rawMs,
+            penaltySec: currentPenaltiesSec,
+            finalMs: finalMs,
+            timestamp: Date.now()
+        };
+
+        data.runs.push(runRecord);
+        Storage.set(STORAGE_KEY, data);
+
+        // Reset volatile state
+        isRunning = false;
+        isPaused = false;
+        accumulatedTime = 0;
+        currentPenaltiesSec = 0;
+        els.clock.textContent = '00:00.000';
+        els.driver.disabled = false;
+        els.driver.value = '';
+        els.driver.focus();
+        
+        updateUI();
+        renderLeaderboard();
+    };
+
+    const addPenalty = (seconds) => {
+        if (isRunning || isPaused || accumulatedTime > 0) {
+            currentPenaltiesSec += seconds;
+            updateUI();
+        } else {
+            alert('Start a run first to apply live penalties.');
+        }
+    };
+
+    const renderLeaderboard = () => {
+        const mode = els.sessionMode.value;
+        let displayRuns = [];
+
+        if (mode === 'best') {
+            // Group by driver, keep lowest finalMs
+            const bestRuns = new Map();
+            data.runs.forEach(run => {
+                const existing = bestRuns.get(run.driver);
+                if (!existing || run.finalMs < existing.finalMs) {
+                    bestRuns.set(run.driver, run);
+                }
+            });
+            displayRuns = Array.from(bestRuns.values());
+        } else {
+            displayRuns = [...data.runs];
+        }
+
+        // Sort ascending by final adjusted time
+        displayRuns.sort((a, b) => a.finalMs - b.finalMs);
+
+        els.tbody.innerHTML = '';
+        
+        if (displayRuns.length === 0) {
+            els.tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 24px;">No runs recorded in this session.</td></tr>`;
+            return;
+        }
+
+        displayRuns.forEach((run, index) => {
+            const tr = document.createElement('tr');
+            if (index === 0) tr.classList.add('podium-1');
+            if (index === 1) tr.classList.add('podium-2');
+            if (index === 2) tr.classList.add('podium-3');
+
+            const safeName = Storage.escapeHTML(run.driver);
+            const penaltyStr = run.penaltySec > 0 ? `+${run.penaltySec}s` : '-';
+            
+            tr.innerHTML = `
+                <td><span class="rank-badge">${index + 1}</span></td>
+                <td style="font-weight:bold;">${safeName}</td>
+                <td class="td-right font-mono" style="color: var(--text-muted);">${formatMS(run.rawMs)}</td>
+                <td class="td-right font-mono" style="color: var(--accent-yellow);">${penaltyStr}</td>
+                <td class="td-right font-mono" style="font-size: 1.2rem; font-weight: bold;">${formatMS(run.finalMs)}</td>
+            `;
+            els.tbody.appendChild(tr);
+        });
+    };
+
+    const resetSession = () => {
+        if (confirm('Are you sure you want to clear all runs? This cannot be undone.')) {
+            data.runs = [];
+            Storage.set(STORAGE_KEY, data);
+            
+            // Clean active state if running
+            if (isRunning) { clearInterval(timerInterval); }
+            isRunning = false; isPaused = false; accumulatedTime = 0; currentPenaltiesSec = 0;
+            els.clock.textContent = '00:00.000';
+            els.driver.disabled = false;
+            
+            updateUI();
+            renderLeaderboard();
+        }
+    };
+
+    // Initialization
+    renderLeaderboard();
+
+    return { start, pause, stop, addPenalty, renderLeaderboard, resetSession, updateUI };
+})();
+
+/**
+ * MODULE 2: Points Scoreboard Logic
+ */
+const ScoreMode = (() => {
+    const STORAGE_KEY = 'RCA_ScoreData';
+    let data = Storage.get(STORAGE_KEY, {
+        players: [
+            { id: 'p1', name: 'Player 1', score: 0 },
+            { id: 'p2', name: 'Player 2', score: 0 }
+        ],
+        history: []
+    });
+
+    const els = {
+        container: document.getElementById('s-players-container'),
+        increment: document.getElementById('s-increment'),
+        tbody: document.getElementById('s-table-body'),
+        logList: document.getElementById('s-history-log'),
+        bonusPlayer: document.getElementById('s-bonus-player'),
+        bonusAmount: document.getElementById('s-bonus-amount'),
+        bonusReason: document.getElementById('s-bonus-reason')
+    };
+
+    const saveState = () => Storage.set(STORAGE_KEY, data);
+
+    const logAction = (playerName, amount, reason) => {
+        const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        data.history.unshift({ time, playerName, amount, reason });
+        if (data.history.length > 100) data.history.pop(); // Cap history to 100
+        saveState();
+        renderLog();
+    };
+
+    const addPlayer = () => {
+        const newId = 'p' + Date.now().toString(36);
+        data.players.push({ id: newId, name: `Player ${data.players.length + 1}`, score: 0 });
+        saveState();
+        renderAll();
+    };
+
+    const removePlayer = (id) => {
+        if (data.players.length <= 2) {
+            alert('Minimum 2 players required.');
+            return;
+        }
+        if (confirm('Remove this player and their score?')) {
+            data.players = data.players.filter(p => p.id !== id);
+            saveState();
+            renderAll();
+        }
+    };
+
+    const updateName = (id, newName) => {
+        const p = data.players.find(p => p.id === id);
+        if (p) {
+            p.name = newName.trim() || 'Unnamed';
+            saveState();
+            renderLeaderboard();
+            renderBonusSelect();
+        }
+    };
+
+    const adjustScore = (id, isAdding) => {
+        const p = data.players.find(p => p.id === id);
+        if (!p) return;
+        
+        const step = parseInt(els.increment.value, 10) || 1;
+        const diff = isAdding ? step : -step;
+        p.score += diff;
+        
+        logAction(p.name, diff, 'Manual Adjustment');
+        saveState();
+        renderPlayerList(); // Update only numbers to keep focus
+        renderLeaderboard();
+    };
+
+    const applyBonus = () => {
+        const pId = els.bonusPlayer.value;
+        const amount = parseInt(els.bonusAmount.value, 10);
+        const reason = els.bonusReason.value.trim() || 'Custom Adjustment';
+
+        if (!pId || isNaN(amount)) {
+            alert('Select a valid player and point amount.');
+            return;
+        }
+
+        const p = data.players.find(p => p.id === pId);
+        if (p) {
+            p.score += amount;
+            logAction(p.name, amount, reason);
+            saveState();
+            
+            els.bonusReason.value = '';
+            renderPlayerList();
+            renderLeaderboard();
+        }
+    };
+
+    const resetScores = () => {
+        if (confirm('Reset all scores to 0 and clear history?')) {
+            data.players.forEach(p => p.score = 0);
+            data.history = [];
+            saveState();
+            renderAll();
+        }
+    };
+
+    // Rendering functions
+    const renderPlayerList = () => {
+        els.container.innerHTML = '';
+        data.players.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'player-row';
+            
+            const safeName = Storage.escapeHTML(p.name);
+            row.innerHTML = `
+                <button class="btn btn-danger btn-icon" onclick="ScoreMode.removePlayer('${p.id}')" title="Remove Player">✕</button>
+                <div class="player-name-wrapper">
+                    <input type="text" value="${safeName}" onblur="ScoreMode.updateName('${p.id}', this.value)">
+                </div>
+                <div class="score-controls">
+                    <button class="btn btn-icon" onclick="ScoreMode.adjustScore('${p.id}', false)">−</button>
+                    <div class="score-display">${p.score}</div>
+                    <button class="btn btn-icon" onclick="ScoreMode.adjustScore('${p.id}', true)">+</button>
+                </div>
+            `;
+            els.container.appendChild(row);
+        });
+    };
+
+    const renderLeaderboard = () => {
+        const sorted = [...data.players].sort((a, b) => b.score - a.score);
+        els.tbody.innerHTML = '';
+        
+        sorted.forEach((p, index) => {
+            const tr = document.createElement('tr');
+            if (index === 0) tr.classList.add('podium-1');
+            if (index === 1) tr.classList.add('podium-2');
+            if (index === 2) tr.classList.add('podium-3');
+
+            tr.innerHTML = `
+                <td><span class="rank-badge">${index + 1}</span></td>
+                <td style="font-weight:bold; font-size:1.2rem;">${Storage.escapeHTML(p.name)}</td>
+                <td class="td-right font-mono" style="font-size:1.5rem; font-weight:bold; color:var(--accent-blue);">${p.score}</td>
+            `;
+            els.tbody.appendChild(tr);
+        });
+    };
+
+    const renderLog = () => {
+        els.logList.innerHTML = '';
+        if (data.history.length === 0) {
+            els.logList.innerHTML = '<div style="color:var(--text-muted); padding-top:16px;">No recent point adjustments.</div>';
+            return;
+        }
+        
+        data.history.forEach(log => {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            const isPos = log.amount >= 0;
+            const amtStr = isPos ? `+${log.amount}` : `${log.amount}`;
+            const amtClass = isPos ? 'positive' : 'negative';
+            
+            div.innerHTML = `
+                <div>
+                    <span class="log-time">[${log.time}]</span>
+                    <strong>${Storage.escapeHTML(log.playerName)}</strong> — <em>${Storage.escapeHTML(log.reason)}</em>
+                </div>
+                <div class="log-amount ${amtClass}">${amtStr}</div>
+            `;
+            els.logList.appendChild(div);
+        });
+    };
+
+    const renderBonusSelect = () => {
+        els.bonusPlayer.innerHTML = '';
+        data.players.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            els.bonusPlayer.appendChild(opt);
+        });
+    };
+
+    const renderAll = () => {
+        renderPlayerList();
+        renderLeaderboard();
+        renderBonusSelect();
+        renderLog();
+    };
+
+    // Init
+    renderAll();
+
+    return { addPlayer, removePlayer, updateName, adjustScore, applyBonus, resetScores, renderAll };
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RC Car Race Timer & Scoreboard</title>
+<style>
+:root{--bg:#0b0f14;--panel:#121824;--panel2:#0f1520;--text:#e8eef7;--muted:#97a6ba;--accent:#5dd6ff;--good:#3ddc97;--warn:#ffcc66;--bad:#ff6b6b;--line:#243247;--chip:#1a2333;--gold:#f2c14e;--silver:#c7d0da;--bronze:#c98b5a;--shadow:0 10px 30px rgba(0,0,0,.35)}
+*{box-sizing:border-box} html,body{height:100%} body{margin:0;background:radial-gradient(1200px 800px at top, #121a27 0%, var(--bg) 55%);color:var(--text);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+button,input,select{font:inherit} button{cursor:pointer;border:0;border-radius:12px;padding:12px 16px;background:var(--chip);color:var(--text);transition:.15s transform,.15s opacity,.15s background} button:hover{transform:translateY(-1px);background:#253247} button:disabled{opacity:.45;cursor:not-allowed;transform:none} input,select{width:100%;background:#0c121b;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:14px 14px;outline:none} input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(93,214,255,.12)}
+.app{max-width:1600px;margin:0 auto;padding:20px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.brand{display:flex;flex-direction:column;gap:2px}.brand h1{margin:0;font-size:clamp(24px,3vw,38px)} .brand p{margin:0;color:var(--muted)}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;padding:20px}.menu .card{padding:24px;min-height:180px;display:flex;flex-direction:column;justify-content:space-between}.menu h2{margin:0 0 10px;font-size:28px}.menu p{color:var(--muted);margin:0 0 18px}
+.view{display:none}.view.active{display:block}.view-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.view-head h2{margin:0;font-size:30px}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.stack{display:grid;gap:16px}.panel{padding:18px}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.section-title h3{margin:0;font-size:22px}.muted{color:var(--muted)}
+.timer{font-size:clamp(56px,8vw,120px);font-weight:800;letter-spacing:.03em;text-align:center;padding:16px 0}.time-sub{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:18px;margin-top:-8px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}.controls .wide{grid-column:1/-1}.row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.pill{display:inline-flex;align-items:center;gap:8px;background:rgba(93,214,255,.12);border:1px solid rgba(93,214,255,.25);color:var(--text);padding:8px 12px;border-radius:999px;font-size:14px}
+.list{display:grid;gap:10px}.leader-row{display:grid;grid-template-columns:70px 1.3fr .9fr .9fr .9fr;gap:10px;align-items:center;padding:12px 14px;background:#0c121b;border:1px solid var(--line);border-radius:14px}.leader-row.head{background:#101826;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em}.rank{font-size:20px;font-weight:800;text-align:center}.podium-1{border-color:rgba(242,193,78,.55);box-shadow:0 0 0 1px rgba(242,193,78,.15) inset}.podium-2{border-color:rgba(199,208,218,.45)}.podium-3{border-color:rgba(201,139,90,.5)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:6px 10px;border-radius:999px;background:#1c2637;font-weight:700}.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}.players{display:grid;gap:10px}.player{display:grid;grid-template-columns:1.2fr .8fr auto auto auto;gap:10px;align-items:center;padding:12px;background:#0c121b;border:1px solid var(--line);border-radius:14px}.player input{padding:12px}.history{max-height:340px;overflow:auto;padding-right:4px}.history-item{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--muted)}.history-item strong{color:var(--text)}
+.footer-actions{display:flex;gap:10px;flex-wrap:wrap}.small{font-size:13px;color:var(--muted)} details summary{cursor:pointer;list-style:none}.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111a27;border:1px solid var(--line);color:var(--text);padding:12px 16px;border-radius:12px;box-shadow:var(--shadow);display:none;max-width:min(92vw,700px)}
+@media (max-width:1100px){.grid,.split,.row,.player,.leader-row,.controls{grid-template-columns:1fr}.view-head,.topbar{flex-direction:column;align-items:stretch}.timer{font-size:clamp(46px,14vw,92px)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand"><h1>RC Car Race Timer & Scoreboard</h1><p>Local-first, projector-friendly timing and points tracking</p></div>
+    <div class="footer-actions"><span class="pill" id="storageStatus">Storage ready</span><button id="resetAllBtn" title="Clear both modes">Reset All Data</button></div>
+  </div>
+
+  <section id="menuView" class="view active card menu">
+    <div class="card"><div><h2>Race Timer</h2><p>Single-driver timing with pause, penalties, and a persistent session leaderboard.</p></div><button id="openRace">Open Race Timer</button></div>
+    <div class="card"><div><h2>Points Scoreboard</h2><p>Dynamic teams, live standings, point adjustments, custom events, and history.</p></div><button id="openPoints">Open Scoreboard</button></div>
+  </section>
+
+  <section id="raceView" class="view">
+    <div class="view-head"><h2>Race Timer</h2><div class="footer-actions"><span id="raceModeTag" class="pill">Session mode: cumulative best</span><button class="backBtn" data-back>Back</button></div></div>
+    <div class="grid">
+      <div class="stack">
+        <div class="card panel">
+          <div class="section-title"><h3>Timing</h3><span class="muted">Start, pause, resume, and stop any time</span></div>
+          <div class="split">
+            <div><label class="small">Driver name</label><input id="driverName" placeholder="Enter driver name" list="driverSuggestions" autocomplete="off" /></div>
+            <div><label class="small">Session mode</label><select id="raceSessionMode"><option value="cumulative">Track multiple runs per driver</option><option value="single">Reset leaderboard between events</option></select></div>
+          </div>
+          <datalist id="driverSuggestions"></datalist>
+          <div class="timer" id="timerDisplay">0:00.000</div>
+          <div class="time-sub"><span id="timerState">Idle</span><span id="runMeta">No active run</span></div>
+          <div class="controls" style="margin-top:16px">
+            <button id="startPauseBtn">Start</button><button id="stopBtn" class="wide">Stop & Save Run</button>
+            <button id="pen5Btn">+5s Penalty</button><button id="pen3Btn">+3s Penalty</button>
+          </div>
+        </div>
+        <div class="card panel">
+          <div class="section-title"><h3>Leaderboard</h3><span class="muted" id="raceCount">0 completed runs</span></div>
+          <div class="list" id="raceLeaderboard"></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card panel"><div class="section-title"><h3>Session tools</h3><span class="muted">Changes persist on refresh</span></div><div class="footer-actions"><button id="newRaceSessionBtn">New Session</button><button id="exportRaceBtn">Copy Results</button></div><p class="small">Penalties can be applied during or after timing. Final time = raw time + penalties.</p></div>
+        <div class="card panel"><div class="section-title"><h3>How it works</h3></div><p class="small">Every completed run is stored with raw time, penalty seconds, and adjusted final time. In cumulative mode, each driver keeps all runs; in single mode, the session is cleared between events.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pointsView" class="view">
+    <div class="view-head"><h2>Points Scoreboard</h2><div class="footer-actions"><button id="addPlayerBtn">Add Player</button><button class="backBtn" data-back>Back</button></div></div>
+    <div class="grid">
+      <div class="stack">
+        <div class="card panel">
+          <div class="section-title"><h3>Teams</h3><span class="muted">Editable names, live sorting</span></div>
+          <div class="split">
+            <div><label class="small">Increment</label><input id="pointIncrement" type="number" min="1" step="1" value="1" /></div>
+            <div><label class="small">Custom event</label><input id="customEventReason" placeholder="e.g. Fastest Lap Bonus" /></div>
+          </div>
+          <div class="split" style="margin-top:12px"><div><label class="small">Custom amount</label><input id="customEventAmount" type="number" step="1" value="5" /></div><div><label class="small">Target player</label><select id="customEventPlayer"></select></div></div>
+          <div class="footer-actions" style="margin-top:12px"><button id="applyCustomEventBtn">Apply Custom Event</button><button id="resetPointsBtn">Reset Scores</button><button id="finalizePointsBtn">End Session</button></div>
+        </div>
+        <div class="card panel">
+          <div class="section-title"><h3>Live leaderboard</h3><span class="muted" id="pointsCount">0 players</span></div>
+          <div class="list" id="pointsLeaderboard"></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card panel">
+          <div class="section-title"><h3>Players</h3><span class="muted">Add or remove as needed</span></div>
+          <div class="players" id="playersList"></div>
+        </div>
+        <div class="card panel">
+          <details open><summary class="section-title"><h3>Point history</h3><span class="muted">Collapsible log</span></summary><div class="history" id="historyLog"></div></details>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(()=>{const keys={race:'rcRaceTimerState_v1',points:'rcPointsState_v1',ui:'rcUiState_v1'};const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);const safeParse=(v,f)=>{try{return v?JSON.parse(v):f}catch{return f}};const now=()=>Date.now();const fmt=(ms)=>{ms=Math.max(0,ms);const m=Math.floor(ms/60000),s=((ms%60000)/1000).toFixed(3).padStart(6,'0');return `${m}:${s}`};const toastEl=$('#toast'); let toastTimer=null;function toast(msg){toastEl.textContent=msg;toastEl.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.style.display='none',2200)}function load(key,fb){return safeParse(localStorage.getItem(key),fb)}function save(key,val){try{localStorage.setItem(key,JSON.stringify(val));$('#storageStatus').textContent='Saved';}catch(e){$('#storageStatus').textContent='Storage unavailable';toast('LocalStorage error: ' + e.message)}}let race=load(keys.race,{sessionMode:'cumulative',runs:[]});let points=load(keys.points,{players:[{id:crypto.randomUUID(),name:'Team 1',points:0},{id:crypto.randomUUID(),name:'Team 2',points:0}],history:[],ended:false});let ui=load(keys.ui,{view:'menu'});let timer={running:false,paused:false,startTs:0,elapsed:0,pauseTs:0,driver:'',penalties:0,raf:0};function syncDatalist(){const dl=$('#driverSuggestions'); const names=[...new Set(race.runs.map(r=>r.driver).filter(Boolean))]; dl.innerHTML=names.map(n=>`<option value="${escapeHtml(n)}"></option>`).join('');}function escapeHtml(s){return String(s).replace(/[&<>\"]+/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]))}function showView(v){ui.view=v;save(keys.ui,ui);$('#menuView').classList.toggle('active',v==='menu');$('#raceView').classList.toggle('active',v==='race');$('#pointsView').classList.toggle('active',v==='points');}function renderRace(){$('#raceSessionMode').value=race.sessionMode;$('#raceModeTag').textContent=`Session mode: ${race.sessionMode==='cumulative'?'cumulative best':'single-run'}`;$('#raceCount').textContent=`${race.runs.length} completed runs`;syncDatalist();const list=$('#raceLeaderboard'); const sorted=[...race.runs].sort((a,b)=>a.finalMs-b.finalMs); list.innerHTML=['<div class="leader-row head"><div>#</div><div>Driver</div><div>Raw</div><div>Penalty</div><div>Final</div></div>',...sorted.map((r,i)=>`<div class="leader-row ${i===0?'podium-1':''} ${i===1?'podium-2':''} ${i===2?'podium-3':''}"><div class="rank">${i+1}</div><div><strong>${escapeHtml(r.driver||'Unnamed')}</strong><div class="small">${new Date(r.finishedAt).toLocaleString()}</div></div><div>${fmt(r.rawMs)}</div><div>${r.penaltySec?`+${r.penaltySec}s penalty`:'—'}</div><div><strong>${fmt(r.finalMs)}</strong></div></div>`)].join('');$('#timerDisplay').textContent=fmt(timer.running?timer.elapsed+(timer.paused?0:now()-timer.startTs):timer.elapsed);$('#timerState').textContent=timer.running?(timer.paused?'Paused':'Running'):'Idle';$('#runMeta').textContent=timer.running?`${timer.driver||'Unnamed'} • ${timer.penalties}s penalties`:'No active run';$('#startPauseBtn').textContent=timer.running?(timer.paused?'Resume':'Pause'):'Start';$('#stopBtn').disabled=!timer.running&&!timer.elapsed;save(keys.race,race)}function renderPoints(){const list=$('#playersList'); const lb=$('#pointsLeaderboard'); const hist=$('#historyLog'); const sorted=[...points.players].sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name));$('#pointsCount').textContent=`${points.players.length} players`; $('#customEventPlayer').innerHTML=points.players.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');list.innerHTML=points.players.map(p=>`<div class="player"><input data-player-name="${p.id}" value="${escapeHtml(p.name)}" /><div class="badge">${p.points}</div><button data-delta="-1" data-player="${p.id}">−</button><button data-delta="1" data-player="${p.id}">+</button><button data-remove-player="${p.id}">Remove</button></div>`).join('');lb.innerHTML=['<div class="leader-row head"><div>#</div><div>Player</div><div>Points</div><div>Delta</div><div>Action</div></div>',...sorted.map((p,i)=>`<div class="leader-row ${i===0?'podium-1':''} ${i===1?'podium-2':''} ${i===2?'podium-3':''}"><div class="rank">${i+1}</div><div><strong>${escapeHtml(p.name)}</strong></div><div><strong>${p.points}</strong></div><div class="muted">Live</div><div class="small">Updated</div></div>`)].join('');hist.innerHTML=(points.history.slice().reverse().map(h=>`<div class="history-item"><strong>${escapeHtml(h.player)}</strong> ${h.amount>=0?'+':''}${h.amount} pts — ${escapeHtml(h.reason)} <div class="small">${new Date(h.at).toLocaleString()}</div></div>`)).join('')||'<div class="history-item">No point changes yet.</div>'; save(keys.points,points)}function loop(){if(timer.running&&!timer.paused){timer.elapsed=now()-timer.startTs+timer.elapsedBase; $('#timerDisplay').textContent=fmt(timer.elapsed);} timer.raf=requestAnimationFrame(loop)}function startOrResume(){const name=($('#driverName').value||'').trim(); timer.driver=name; if(!timer.running){timer.running=true;timer.paused=false;timer.startTs=now();timer.elapsedBase=0;timer.penalties=0;$('#runMeta').textContent='New run started'; cancelAnimationFrame(timer.raf); timer.raf=requestAnimationFrame(loop); } else if(timer.paused){timer.paused=false;timer.startTs=now();} renderRace();}function pause(){if(timer.running&&!timer.paused){timer.elapsedBase=timer.elapsed;timer.paused=true;renderRace()}}function stopRun(){if(!timer.running&&!timer.elapsed)return; if(timer.running&&!timer.paused){timer.elapsed=now()-timer.startTs+timer.elapsedBase;} const run={id:crypto.randomUUID(),driver:(timer.driver||$('#driverName').value||'Unnamed').trim()||'Unnamed',rawMs:Math.round(timer.elapsed),penaltySec:timer.penalties,finalMs:Math.round(timer.elapsed+timer.penalties*1000),finishedAt:now()}; race.runs.push(run); resetTimerState(); renderRace(); toast('Run saved'); }function resetTimerState(){timer={running:false,paused:false,startTs:0,elapsed:0,pauseTs:0,driver:'',penalties:0,raf:0}; $('#driverName').value=''; cancelAnimationFrame(timer.raf)}function addPenalty(sec){if(!timer.running&&!timer.elapsed){toast('Start a run first'); return;} timer.penalties+=sec; renderRace()}function newRaceSession(){if(confirm('Clear all race runs and start a new session?')){race.runs=[]; resetTimerState(); renderRace(); toast('Race session cleared')}}function copyRace(){const text=race.runs.slice().sort((a,b)=>a.finalMs-b.finalMs).map((r,i)=>`${i+1}. ${r.driver} | raw ${fmt(r.rawMs)} | +${r.penaltySec}s | final ${fmt(r.finalMs)}`).join('\n'); navigator.clipboard?.writeText(text).then(()=>toast('Race results copied')).catch(()=>toast('Copy unavailable'))}function addPlayer(){points.players.push({id:crypto.randomUUID(),name:`Team ${points.players.length+1}`,points:0}); renderPoints()}function removePlayer(id){if(points.players.length<=2){toast('Minimum 2 players required'); return;} points.players=points.players.filter(p=>p.id!==id); renderPoints()}function adjustPlayer(id,delta,reason){const p=points.players.find(x=>x.id===id); if(!p) return; p.points+=delta; points.history.push({player:p.name,amount:delta,reason:reason||'Manual adjustment',at:now()}); renderPoints()}function resetPoints(){if(confirm('Reset all scores and history?')){points.players.forEach(p=>p.points=0); points.history=[]; points.ended=false; renderPoints(); toast('Scores reset')}}function finalizePoints(){points.ended=true; renderPoints(); toast('Session ended')}function applyCustom(){const id=$('#customEventPlayer').value; const amt=Number($('#customEventAmount').value||0); const reason=$('#customEventReason').value.trim()||'Custom event'; if(!id||!amt){toast('Choose player and amount');return;} adjustPlayer(id,amt,reason)}function confirmResetAll(){if(confirm('Clear race runs, points, history, and UI state?')){localStorage.removeItem(keys.race); localStorage.removeItem(keys.points); localStorage.removeItem(keys.ui); location.reload()}}document.addEventListener('click',e=>{const t=e.target.closest('[data-back]'); if(t){showView('menu')} });$('#openRace').onclick=()=>showView('race'); $('#openPoints').onclick=()=>showView('points'); $('#startPauseBtn').onclick=()=>{if(!timer.running) startOrResume(); else if(timer.paused) startOrResume(); else pause()}; $('#stopBtn').onclick=stopRun; $('#pen5Btn').onclick=()=>addPenalty(5); $('#pen3Btn').onclick=()=>addPenalty(3); $('#newRaceSessionBtn').onclick=newRaceSession; $('#exportRaceBtn').onclick=copyRace; $('#raceSessionMode').onchange=e=>{race.sessionMode=e.target.value; renderRace()}; $('#addPlayerBtn').onclick=addPlayer; $('#resetPointsBtn').onclick=resetPoints; $('#finalizePointsBtn').onclick=finalizePoints; $('#applyCustomEventBtn').onclick=applyCustom; $('#resetAllBtn').onclick=confirmResetAll;$('#playersList').addEventListener('click',e=>{const btn=e.target.closest('button'); if(!btn)return; if(btn.dataset.delta) adjustPlayer(btn.dataset.player,Number(btn.dataset.delta),Number(btn.dataset.delta)>0?'Point bonus':'Point deduction'); if(btn.dataset.removePlayer) removePlayer(btn.dataset.removePlayer)});$('#playersList').addEventListener('input',e=>{const inp=e.target.closest('[data-player-name]'); if(!inp)return; const p=points.players.find(x=>x.id===inp.dataset.playerName); if(p){p.name=inp.value; renderPoints()}});window.addEventListener('beforeunload',()=>{save(keys.race,race); save(keys.points,points); save(keys.ui,ui)});if(ui.view==='race') showView('race'); else if(ui.view==='points') showView('points'); else showView('menu'); renderRace(); renderPoints(); if(!timer.raf) timer.raf=requestAnimationFrame(loop);})();
+</script>
+</body>
+</html>

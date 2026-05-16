@@ -1,0 +1,2013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RC Race Timer & Scoreboard</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --surface2: #1c2333;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text2: #b0b8c4;
+            --text3: #8b949e;
+            --accent: #58a6ff;
+            --accent2: #3fb950;
+            --danger: #f85149;
+            --warning: #d2991d;
+            --gold: #f0c040;
+            --gold-bg: #3d2e00;
+            --silver: #c0c8d8;
+            --silver-bg: #2a2d35;
+            --bronze: #d4946a;
+            --bronze-bg: #2d2018;
+            --penalty: #f0883e;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+            --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+            --transition: 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            display: flex;
+            justify-content: center;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 1100px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* ──────────────── HEADER ──────────────── */
+        .app-header {
+            text-align: center;
+            padding: 1rem 0 0;
+        }
+        .app-header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent), #7ee787);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .app-header .subtitle {
+            color: var(--text3);
+            font-size: 0.95rem;
+            margin-top: 0.2rem;
+        }
+
+        /* ──────────────── NAVIGATION BAR ──────────────── */
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.6rem 1.2rem;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: var(--font-sans);
+            white-space: nowrap;
+        }
+        .btn-back:hover {
+            background: #252d3a;
+            border-color: #586069;
+        }
+        .btn-back .arrow {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        /* ──────────────── MAIN MENU ──────────────── */
+        #menu-view {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            min-height: 60vh;
+        }
+        .menu-cards {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+        .menu-card {
+            flex: 1;
+            min-width: 280px;
+            max-width: 420px;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2.5rem 2rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        .menu-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(88, 166, 255, 0.15);
+        }
+        .menu-card .card-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        .menu-card h2 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+        .menu-card p {
+            color: var(--text2);
+            font-size: 0.95rem;
+        }
+        .menu-card.card-timer {
+            border-left: 4px solid var(--accent2);
+        }
+        .menu-card.card-scoreboard {
+            border-left: 4px solid var(--accent);
+        }
+
+        /* ──────────────── MODE VIEWS ──────────────── */
+        .mode-view {
+            display: none;
+            flex-direction: column;
+            gap: 1.5rem;
+            animation: fadeIn 0.25s ease;
+        }
+        .mode-view.active {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ──────────────── RACE TIMER ──────────────── */
+        .timer-section {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.25rem;
+        }
+        .driver-input-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+        .driver-input-row input {
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+            background: var(--surface2);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            font-size: 1.1rem;
+            color: var(--text);
+            font-family: var(--font-sans);
+            transition: border-color var(--transition);
+            outline: none;
+        }
+        .driver-input-row input:focus {
+            border-color: var(--accent);
+        }
+        .driver-input-row input::placeholder {
+            color: var(--text3);
+        }
+
+        .timer-display-container {
+            position: relative;
+        }
+        .timer-display {
+            font-family: var(--font-mono);
+            font-size: clamp(4rem, 10vw, 8rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--text);
+            text-align: center;
+            line-height: 1;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            transition: color 0.3s;
+            user-select: none;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.08);
+        }
+        .timer-display.running {
+            color: #7ee787;
+            text-shadow: 0 0 60px rgba(126, 231, 135, 0.25);
+        }
+        .timer-display.paused {
+            color: var(--warning);
+            text-shadow: 0 0 40px rgba(210, 153, 29, 0.2);
+        }
+        .timer-display.stopped {
+            color: var(--text);
+        }
+        .penalty-indicator {
+            display: inline-block;
+            background: var(--penalty);
+            color: #000;
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 0.2rem 0.7rem;
+            border-radius: 20px;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+            animation: popIn 0.3s ease;
+        }
+        @keyframes popIn {
+            from {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.7rem 1.4rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: var(--font-sans);
+            white-space: nowrap;
+            letter-spacing: 0.01em;
+            min-width: 80px;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .btn-start {
+            background: var(--accent2);
+            color: #000;
+            font-size: 1.15rem;
+            padding: 0.85rem 2rem;
+        }
+        .btn-start:hover {
+            background: #4ad960;
+            box-shadow: 0 4px 16px rgba(63, 185, 80, 0.35);
+        }
+        .btn-pause {
+            background: var(--warning);
+            color: #000;
+        }
+        .btn-pause:hover {
+            background: #e0a820;
+        }
+        .btn-resume {
+            background: var(--accent2);
+            color: #000;
+        }
+        .btn-resume:hover {
+            background: #4ad960;
+        }
+        .btn-stop {
+            background: var(--danger);
+            color: #fff;
+            font-size: 1.1rem;
+            padding: 0.85rem 2rem;
+        }
+        .btn-stop:hover {
+            background: #ff5e52;
+            box-shadow: 0 4px 16px rgba(248, 81, 73, 0.35);
+        }
+        .btn-penalty {
+            background: var(--penalty);
+            color: #000;
+            font-weight: 700;
+        }
+        .btn-penalty:hover {
+            background: #f4985a;
+            box-shadow: 0 4px 12px rgba(240, 136, 62, 0.3);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text);
+        }
+        .btn-outline:hover {
+            border-color: #586069;
+            background: var(--surface2);
+        }
+        .btn-sm {
+            padding: 0.45rem 0.9rem;
+            font-size: 0.85rem;
+            min-width: auto;
+        }
+        .btn-reset {
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+        }
+        .btn-reset:hover {
+            background: rgba(248, 81, 73, 0.1);
+            border-color: #ff5e52;
+        }
+
+        /* ──────────────── SESSION TOGGLE ──────────────── */
+        .session-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: var(--surface2);
+            padding: 0.6rem 1.2rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        .session-toggle-row span {
+            color: var(--text2);
+            font-size: 0.9rem;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 28px;
+            transition: all var(--transition);
+        }
+        .toggle-slider:before {
+            content: '';
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--text3);
+            border-radius: 50%;
+            transition: all var(--transition);
+        }
+        .toggle-switch input:checked+.toggle-slider {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .toggle-switch input:checked+.toggle-slider:before {
+            transform: translateX(22px);
+            background: #fff;
+        }
+
+        /* ──────────────── LEADERBOARD ──────────────── */
+        .leaderboard-section {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        .leaderboard-section h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1rem;
+        }
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 0.7rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .leaderboard-table th {
+            font-weight: 600;
+            color: var(--text3);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            z-index: 1;
+        }
+        .leaderboard-table tbody tr {
+            transition: background var(--transition);
+        }
+        .leaderboard-table tbody tr:hover {
+            background: var(--surface2);
+        }
+        .leaderboard-table .rank-col {
+            width: 50px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .leaderboard-table .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .rank-1 {
+            background: var(--gold-bg);
+            color: var(--gold);
+            box-shadow: 0 0 12px rgba(240, 192, 64, 0.3);
+        }
+        .rank-2 {
+            background: var(--silver-bg);
+            color: var(--silver);
+            box-shadow: 0 0 10px rgba(192, 200, 216, 0.2);
+        }
+        .rank-3 {
+            background: var(--bronze-bg);
+            color: var(--bronze);
+            box-shadow: 0 0 10px rgba(212, 148, 106, 0.2);
+        }
+        .rank-other {
+            color: var(--text3);
+        }
+        .podium-row {
+            font-weight: 600;
+        }
+        .podium-row td {
+            padding-top: 0.85rem;
+            padding-bottom: 0.85rem;
+        }
+        .time-cell {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+        .penalty-cell {
+            color: var(--penalty);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text3);
+            font-style: italic;
+        }
+
+        /* ──────────────── SCOREBOARD ──────────────── */
+        .scoreboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        @media (max-width: 768px) {
+            .scoreboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .menu-cards {
+                flex-direction: column;
+                align-items: center;
+            }
+            .timer-display {
+                font-size: 3.5rem;
+            }
+        }
+        .scoreboard-panel {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        .scoreboard-panel h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.6rem 0.8rem;
+            background: var(--surface2);
+            border-radius: var(--radius-sm);
+            margin-bottom: 0.5rem;
+            border: 1px solid transparent;
+            transition: all var(--transition);
+        }
+        .player-card:hover {
+            border-color: var(--border);
+        }
+        .player-card input {
+            flex: 1;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text);
+            font-size: 1rem;
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            font-family: var(--font-sans);
+            outline: none;
+            transition: border-color var(--transition);
+            min-width: 80px;
+        }
+        .player-card input:focus {
+            border-color: var(--accent);
+            background: rgba(88, 166, 255, 0.05);
+        }
+        .player-card .player-points {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.2rem;
+            min-width: 50px;
+            text-align: right;
+            color: var(--text);
+        }
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition);
+            font-family: var(--font-sans);
+            line-height: 1;
+        }
+        .btn-icon:active {
+            transform: scale(0.9);
+        }
+        .btn-add {
+            background: var(--accent2);
+            color: #000;
+        }
+        .btn-add:hover {
+            background: #4ad960;
+        }
+        .btn-sub {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-sub:hover {
+            background: #ff5e52;
+        }
+        .btn-remove-player {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid transparent;
+            width: 30px;
+            height: 30px;
+            font-size: 1rem;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .btn-remove-player:hover {
+            background: rgba(248, 81, 73, 0.15);
+            border-color: var(--danger);
+        }
+        .increment-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .increment-control label {
+            color: var(--text2);
+            font-size: 0.9rem;
+        }
+        .increment-control input {
+            width: 60px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.4rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            text-align: center;
+            font-family: var(--font-mono);
+            outline: none;
+        }
+        .increment-control input:focus {
+            border-color: var(--accent);
+        }
+        .custom-event-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+        .custom-event-row select,
+        .custom-event-row input {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.45rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: var(--font-sans);
+            outline: none;
+        }
+        .custom-event-row select:focus,
+        .custom-event-row input:focus {
+            border-color: var(--accent);
+        }
+        .custom-event-row input.reason-input {
+            flex: 1;
+            min-width: 120px;
+        }
+        .custom-event-row input.points-input {
+            width: 70px;
+            text-align: center;
+            font-family: var(--font-mono);
+        }
+
+        .history-toggle {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text2);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            transition: all var(--transition);
+            width: 100%;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-toggle:hover {
+            border-color: #586069;
+            color: var(--text);
+        }
+        .history-panel {
+            display: none;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+            background: var(--surface2);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        .history-panel.open {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+        .history-list {
+            list-style: none;
+            padding: 0.5rem;
+        }
+        .history-list li {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .history-list li:last-child {
+            border-bottom: none;
+        }
+        .history-amount {
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+        .history-amount.positive {
+            color: var(--accent2);
+        }
+        .history-amount.negative {
+            color: var(--danger);
+        }
+        .history-time {
+            color: var(--text3);
+            font-size: 0.8rem;
+        }
+
+        /* ──────────────── FINAL STANDINGS OVERLAY ──────────────── */
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .overlay.active {
+            display: flex;
+        }
+        .overlay-content {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
+        }
+        .overlay-content h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.02em;
+        }
+        .podium-display {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: flex-end;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .podium-spot {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border-radius: var(--radius);
+            min-width: 140px;
+            flex: 1;
+            max-width: 180px;
+        }
+        .podium-spot.first {
+            background: var(--gold-bg);
+            border: 2px solid var(--gold);
+            order: 2;
+            transform: translateY(-10px);
+        }
+        .podium-spot.second {
+            background: var(--silver-bg);
+            border: 2px solid var(--silver);
+            order: 1;
+        }
+        .podium-spot.third {
+            background: var(--bronze-bg);
+            border: 2px solid var(--bronze);
+            order: 3;
+        }
+        .podium-spot .medal {
+            font-size: 2.5rem;
+            display: block;
+        }
+        .podium-spot .podium-name {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin: 0.5rem 0;
+        }
+        .podium-spot .podium-score {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .btn-close-overlay {
+            margin-top: 1rem;
+        }
+
+        /* ──────────────── SCROLLBAR ──────────────── */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--surface2);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #484f58;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #586069;
+        }
+
+        /* ──────────────── TOAST ──────────────── */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2d333b;
+            color: var(--text);
+            padding: 0.8rem 1.5rem;
+            border-radius: 30px;
+            font-weight: 600;
+            z-index: 200;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.2s forwards;
+            pointer-events: none;
+            border: 1px solid var(--border);
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateX(-50%) translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-10px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- HEADER -->
+        <header class="app-header">
+            <h1>🏁 RC Race Control</h1>
+            <p class="subtitle">Timer &amp; Points Scoreboard</p>
+        </header>
+
+        <!-- NAVIGATION BAR (shown in modes, hidden in menu) -->
+        <div id="nav-bar" class="nav-bar" style="display:none;">
+            <button class="btn-back" id="btn-back" title="Return to main menu">
+                <span class="arrow">←</span> Back to Menu
+            </button>
+            <span id="nav-mode-label" style="color:var(--text2);font-weight:600;"></span>
+        </div>
+
+        <!-- MAIN MENU -->
+        <div id="menu-view" class="mode-view active">
+            <div class="menu-cards">
+                <div class="menu-card card-timer" id="card-timer" role="button" tabindex="0" aria-label="Open Race Timer">
+                    <span class="card-icon">⏱️</span>
+                    <h2>Race Timer</h2>
+                    <p>Single-driver runs with penalties &amp; leaderboard</p>
+                </div>
+                <div class="menu-card card-scoreboard" id="card-scoreboard" role="button" tabindex="0" aria-label="Open Points Scoreboard">
+                    <span class="card-icon">📊</span>
+                    <h2>Points Scoreboard</h2>
+                    <p>Multi-player points tracking &amp; standings</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- RACE TIMER VIEW -->
+        <div id="timer-view" class="mode-view">
+            <div class="timer-section">
+                <div class="driver-input-row">
+                    <input type="text" id="driver-name-input" placeholder="Enter driver name..." list="driver-datalist" autocomplete="off">
+                    <datalist id="driver-datalist"></datalist>
+                </div>
+                <div class="timer-display-container">
+                    <span class="timer-display" id="timer-display">00:00.00</span>
+                    <span id="penalty-badge" style="display:none;" class="penalty-indicator">+0s</span>
+                </div>
+                <div class="btn-row" id="timer-controls">
+                    <button class="btn btn-start" id="btn-start">▶ Start</button>
+                    <button class="btn btn-pause" id="btn-pause" disabled>⏸ Pause</button>
+                    <button class="btn btn-resume" id="btn-resume" disabled>▶ Resume</button>
+                    <button class="btn btn-stop" id="btn-stop" disabled>⏹ Stop</button>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-penalty" id="btn-penalty-5" disabled>+5s Penalty</button>
+                    <button class="btn btn-penalty" id="btn-penalty-3" disabled>+3s Penalty</button>
+                </div>
+                <div class="session-toggle-row">
+                    <span>Session Mode:</span>
+                    <label class="toggle-switch" title="Toggle between cumulative best-time and single-run modes">
+                        <input type="checkbox" id="session-mode-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span id="session-mode-label" style="font-weight:600;">Cumulative Best</span>
+                </div>
+                <button class="btn btn-reset" id="btn-reset-timer">🔄 Reset All Runs</button>
+            </div>
+            <div class="leaderboard-section" id="timer-leaderboard-section">
+                <h3>🏆 Leaderboard</h3>
+                <div id="timer-leaderboard-container">
+                    <p class="empty-state">No runs recorded yet. Start a race to begin!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- POINTS SCOREBOARD VIEW -->
+        <div id="scoreboard-view" class="mode-view">
+            <div class="scoreboard-grid">
+                <!-- Left: Player management -->
+                <div class="scoreboard-panel" id="players-panel">
+                    <h3>👥 Players</h3>
+                    <div class="increment-control">
+                        <label for="point-increment">Increment:</label>
+                        <input type="number" id="point-increment" value="1" min="1" max="100" step="1">
+                    </div>
+                    <div id="players-list"></div>
+                    <button class="btn btn-outline btn-sm" id="btn-add-player" style="margin-top:0.5rem;width:100%;">+ Add Player</button>
+                    <div class="custom-event-row">
+                        <select id="custom-event-player"></select>
+                        <input type="number" id="custom-event-points" class="points-input" value="5" placeholder="Pts">
+                        <input type="text" id="custom-event-reason" class="reason-input" placeholder="Reason (e.g. Fastest Lap)">
+                        <button class="btn btn-sm btn-penalty" id="btn-apply-custom">Apply</button>
+                    </div>
+                </div>
+                <!-- Right: Leaderboard & History -->
+                <div class="scoreboard-panel" id="scoreboard-leaderboard-panel">
+                    <h3>🏆 Standings</h3>
+                    <div id="scoreboard-leaderboard-container">
+                        <p class="empty-state">Add players to get started.</p>
+                    </div>
+                    <button class="history-toggle" id="btn-toggle-history" style="margin-top:1rem;">
+                        📋 Point Adjustment History <span id="history-chevron">▶</span>
+                    </button>
+                    <div class="history-panel" id="history-panel">
+                        <ul class="history-list" id="history-list"></ul>
+                    </div>
+                </div>
+            </div>
+            <div class="btn-row" style="justify-content:center;gap:1rem;">
+                <button class="btn btn-outline" id="btn-end-session">🏁 End Session / Final Standings</button>
+                <button class="btn btn-reset" id="btn-reset-scores">🔄 Reset All Scores</button>
+            </div>
+        </div>
+
+        <!-- FINAL STANDINGS OVERLAY -->
+        <div class="overlay" id="final-standings-overlay">
+            <div class="overlay-content">
+                <h2>🏁 Final Standings</h2>
+                <div class="podium-display" id="podium-display"></div>
+                <button class="btn btn-outline btn-close-overlay" id="btn-close-overlay">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ───────────────────────────────────────
+            // DOM REFERENCES
+            // ───────────────────────────────────────
+            const $menuView = document.getElementById('menu-view');
+            const $timerView = document.getElementById('timer-view');
+            const $scoreboardView = document.getElementById('scoreboard-view');
+            const $navBar = document.getElementById('nav-bar');
+            const $navModeLabel = document.getElementById('nav-mode-label');
+            const $btnBack = document.getElementById('btn-back');
+
+            // Timer elements
+            const $driverNameInput = document.getElementById('driver-name-input');
+            const $driverDatalist = document.getElementById('driver-datalist');
+            const $timerDisplay = document.getElementById('timer-display');
+            const $penaltyBadge = document.getElementById('penalty-badge');
+            const $btnStart = document.getElementById('btn-start');
+            const $btnPause = document.getElementById('btn-pause');
+            const $btnResume = document.getElementById('btn-resume');
+            const $btnStop = document.getElementById('btn-stop');
+            const $btnPenalty5 = document.getElementById('btn-penalty-5');
+            const $btnPenalty3 = document.getElementById('btn-penalty-3');
+            const $sessionModeToggle = document.getElementById('session-mode-toggle');
+            const $sessionModeLabel = document.getElementById('session-mode-label');
+            const $btnResetTimer = document.getElementById('btn-reset-timer');
+            const $timerLeaderboardContainer = document.getElementById('timer-leaderboard-container');
+
+            // Scoreboard elements
+            const $playersList = document.getElementById('players-list');
+            const $pointIncrement = document.getElementById('point-increment');
+            const $btnAddPlayer = document.getElementById('btn-add-player');
+            const $customEventPlayer = document.getElementById('custom-event-player');
+            const $customEventPoints = document.getElementById('custom-event-points');
+            const $customEventReason = document.getElementById('custom-event-reason');
+            const $btnApplyCustom = document.getElementById('btn-apply-custom');
+            const $scoreboardLeaderboardContainer = document.getElementById(
+                'scoreboard-leaderboard-container');
+            const $btnToggleHistory = document.getElementById('btn-toggle-history');
+            const $historyChevron = document.getElementById('history-chevron');
+            const $historyPanel = document.getElementById('history-panel');
+            const $historyList = document.getElementById('history-list');
+            const $btnEndSession = document.getElementById('btn-end-session');
+            const $btnResetScores = document.getElementById('btn-reset-scores');
+            const $finalStandingsOverlay = document.getElementById('final-standings-overlay');
+            const $podiumDisplay = document.getElementById('podium-display');
+            const $btnCloseOverlay = document.getElementById('btn-close-overlay');
+
+            // ───────────────────────────────────────
+            // APPLICATION STATE
+            // ───────────────────────────────────────
+            const LS_KEYS = {
+                timerRuns: 'rc_race_timer_runs',
+                timerSessionMode: 'rc_race_timer_session_mode',
+                scoreboardPlayers: 'rc_scoreboard_players',
+                scoreboardHistory: 'rc_scoreboard_history',
+                scoreboardIncrement: 'rc_scoreboard_increment',
+                previousDrivers: 'rc_previous_drivers',
+            };
+
+            let state = {
+                // Race Timer
+                timerStatus: 'idle', // 'idle' | 'running' | 'paused' | 'stopped'
+                currentDriverName: '',
+                rawElapsedMs: 0, // accumulated raw ms (excluding current running segment)
+                runningStartTs: null, // timestamp when current segment started
+                penaltySeconds: 0, // penalty for current/last run
+                currentRunId: null, // unique ID for current/last run
+                timerDisplayIntervalId: null,
+                runs: [], // { id, driverName, rawMs, penaltySeconds, finalMs, timestamp }
+                sessionMode: 'cumulative', // 'cumulative' | 'single'
+                previousDrivers: [],
+
+                // Scoreboard
+                players: [], // { id, name, points }
+                scoreHistory: [], // { playerId, playerName, amount, reason, timestamp }
+                nextPlayerId: 1,
+                pointIncrement: 1,
+            };
+
+            // ───────────────────────────────────────
+            // LOCAL STORAGE HELPERS
+            // ───────────────────────────────────────
+            function saveToLS(key, data) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                } catch (e) {
+                    showToast('⚠️ Unable to save data (storage full)');
+                }
+            }
+
+            function loadFromLS(key, fallback) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    if (raw === null) return fallback;
+                    return JSON.parse(raw);
+                } catch (e) {
+                    return fallback;
+                }
+            }
+
+            function loadAllState() {
+                state.runs = loadFromLS(LS_KEYS.timerRuns, []);
+                state.sessionMode = loadFromLS(LS_KEYS.timerSessionMode, 'cumulative');
+                state.players = loadFromLS(LS_KEYS.scoreboardPlayers, []);
+                state.scoreHistory = loadFromLS(LS_KEYS.scoreboardHistory, []);
+                state.pointIncrement = loadFromLS(LS_KEYS.scoreboardIncrement, 1);
+                state.previousDrivers = loadFromLS(LS_KEYS.previousDrivers, []);
+
+                // Recalculate nextPlayerId
+                const maxId = state.players.reduce((max, p) => Math.max(max, p.id || 0), 0);
+                state.nextPlayerId = maxId + 1;
+
+                // Ensure minimum 2 players for scoreboard
+                if (state.players.length < 2 && state.players.length === 0) {
+                    state.players = [
+                        { id: state.nextPlayerId++, name: 'Player 1', points: 0 },
+                        { id: state.nextPlayerId++, name: 'Player 2', points: 0 },
+                    ];
+                    persistScoreboard();
+                } else if (state.players.length === 1) {
+                    state.players.push({ id: state.nextPlayerId++, name: 'Player 2', points: 0 });
+                    persistScoreboard();
+                }
+
+                // Sync UI
+                $sessionModeToggle.checked = (state.sessionMode === 'single');
+                updateSessionModeLabel();
+                $pointIncrement.value = state.pointIncrement;
+                updateDriverDatalist();
+            }
+
+            function persistTimerRuns() {
+                saveToLS(LS_KEYS.timerRuns, state.runs);
+            }
+
+            function persistSessionMode() {
+                saveToLS(LS_KEYS.timerSessionMode, state.sessionMode);
+            }
+
+            function persistScoreboard() {
+                saveToLS(LS_KEYS.scoreboardPlayers, state.players);
+                saveToLS(LS_KEYS.scoreboardHistory, state.scoreHistory);
+                saveToLS(LS_KEYS.scoreboardIncrement, state.pointIncrement);
+            }
+
+            function persistPreviousDrivers() {
+                saveToLS(LS_KEYS.previousDrivers, state.previousDrivers);
+            }
+
+            // ───────────────────────────────────────
+            // TOAST NOTIFICATIONS
+            // ───────────────────────────────────────
+            function showToast(message) {
+                const existing = document.querySelector('.toast');
+                if (existing) existing.remove();
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                toast.addEventListener('animationend', (e) => {
+                    if (e.animationName === 'fadeOut') toast.remove();
+                });
+                // Auto-remove after animation
+                setTimeout(() => {
+                    if (toast.parentNode) toast.remove();
+                }, 2600);
+            }
+
+            // ───────────────────────────────────────
+            // NAVIGATION
+            // ───────────────────────────────────────
+            function showView(view) {
+                // Auto-pause timer if running and navigating away
+                if (view !== 'timer' && state.timerStatus === 'running') {
+                    pauseTimer();
+                }
+
+                // Hide all mode views
+                [$menuView, $timerView, $scoreboardView].forEach(v => v.classList.remove('active'));
+
+                if (view === 'menu') {
+                    $menuView.classList.add('active');
+                    $navBar.style.display = 'none';
+                } else if (view === 'timer') {
+                    $timerView.classList.add('active');
+                    $navBar.style.display = 'flex';
+                    $navModeLabel.textContent = 'Race Timer';
+                    updateTimerUI();
+                    renderTimerLeaderboard();
+                } else if (view === 'scoreboard') {
+                    $scoreboardView.classList.add('active');
+                    $navBar.style.display = 'flex';
+                    $navModeLabel.textContent = 'Points Scoreboard';
+                    renderPlayersList();
+                    renderScoreboardLeaderboard();
+                    renderHistoryList();
+                    updateCustomEventDropdown();
+                }
+            }
+
+            $btnBack.addEventListener('click', () => showView('menu'));
+            document.getElementById('card-timer').addEventListener('click', () => showView('timer'));
+            document.getElementById('card-scoreboard').addEventListener('click', () => showView('scoreboard'));
+
+            // Keyboard accessibility for menu cards
+            document.getElementById('card-timer').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault();
+                    showView('timer'); }
+            });
+            document.getElementById('card-scoreboard').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault();
+                    showView('scoreboard'); }
+            });
+
+            // ───────────────────────────────────────
+            // TIMER ENGINE
+            // ───────────────────────────────────────
+            function getDisplayTimeMs() {
+                let totalMs = state.rawElapsedMs;
+                if (state.timerStatus === 'running' && state.runningStartTs !== null) {
+                    totalMs += Date.now() - state.runningStartTs;
+                }
+                // Add penalty as milliseconds
+                totalMs += state.penaltySeconds * 1000;
+                return Math.max(0, totalMs);
+            }
+
+            function formatTime(ms) {
+                const totalSeconds = ms / 1000;
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                const hundredths = Math.floor((seconds % 1) * 100);
+                const wholeSeconds = Math.floor(seconds);
+                return (
+                    String(minutes).padStart(2, '0') +
+                    ':' +
+                    String(wholeSeconds).padStart(2, '0') +
+                    '.' +
+                    String(hundredths).padStart(2, '0')
+                );
+            }
+
+            function formatTimeShort(ms) {
+                const totalSeconds = ms / 1000;
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                const tenths = Math.floor((seconds % 1) * 10);
+                const wholeSeconds = Math.floor(seconds);
+                return (
+                    String(minutes).padStart(2, '0') +
+                    ':' +
+                    String(wholeSeconds).padStart(2, '0') +
+                    '.' +
+                    String(tenths)
+                );
+            }
+
+            function updateTimerDisplay() {
+                const displayMs = getDisplayTimeMs();
+                $timerDisplay.textContent = formatTime(displayMs);
+
+                // Update display class based on status
+                $timerDisplay.classList.remove('running', 'paused', 'stopped');
+                if (state.timerStatus === 'running') $timerDisplay.classList.add('running');
+                if (state.timerStatus === 'paused') $timerDisplay.classList.add('paused');
+                if (state.timerStatus === 'stopped') $timerDisplay.classList.add('stopped');
+
+                // Update penalty badge
+                if (state.penaltySeconds > 0) {
+                    $penaltyBadge.style.display = 'inline-block';
+                    $penaltyBadge.textContent = '+' + state.penaltySeconds + 's';
+                } else {
+                    $penaltyBadge.style.display = 'none';
+                }
+            }
+
+            function startTimerDisplayLoop() {
+                stopTimerDisplayLoop();
+                state.timerDisplayIntervalId = setInterval(updateTimerDisplay, 33); // ~30fps
+            }
+
+            function stopTimerDisplayLoop() {
+                if (state.timerDisplayIntervalId !== null) {
+                    clearInterval(state.timerDisplayIntervalId);
+                    state.timerDisplayIntervalId = null;
+                }
+            }
+
+            function startTimer() {
+                if (state.timerStatus === 'running') return;
+                const driverName = $driverNameInput.value.trim();
+                if (!driverName) {
+                    showToast('⚠️ Please enter a driver name');
+                    $driverNameInput.focus();
+                    return;
+                }
+                state.currentDriverName = driverName;
+                state.rawElapsedMs = 0;
+                state.penaltySeconds = 0;
+                state.runningStartTs = Date.now();
+                state.timerStatus = 'running';
+                state.currentRunId = 'run_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+                // Add to previous drivers
+                if (!state.previousDrivers.includes(driverName)) {
+                    state.previousDrivers.unshift(driverName);
+                    if (state.previousDrivers.length > 30) state.previousDrivers.pop();
+                    persistPreviousDrivers();
+                    updateDriverDatalist();
+                }
+
+                startTimerDisplayLoop();
+                updateTimerUI();
+                updateTimerDisplay();
+            }
+
+            function pauseTimer() {
+                if (state.timerStatus !== 'running') return;
+                // Accumulate elapsed time
+                state.rawElapsedMs += Date.now() - state.runningStartTs;
+                state.runningStartTs = null;
+                state.timerStatus = 'paused';
+                stopTimerDisplayLoop();
+                updateTimerDisplay();
+                updateTimerUI();
+            }
+
+            function resumeTimer() {
+                if (state.timerStatus !== 'paused') return;
+                state.runningStartTs = Date.now();
+                state.timerStatus = 'running';
+                startTimerDisplayLoop();
+                updateTimerUI();
+                updateTimerDisplay();
+            }
+
+            function stopTimer() {
+                if (state.timerStatus === 'idle' || state.timerStatus === 'stopped') return;
+                // Accumulate final elapsed time
+                if (state.timerStatus === 'running') {
+                    state.rawElapsedMs += Date.now() - state.runningStartTs;
+                    state.runningStartTs = null;
+                }
+                state.timerStatus = 'stopped';
+                stopTimerDisplayLoop();
+
+                // Create and save the run
+                const finalMs = state.rawElapsedMs + (state.penaltySeconds * 1000);
+                const run = {
+                    id: state.currentRunId,
+                    driverName: state.currentDriverName,
+                    rawMs: state.rawElapsedMs,
+                    penaltySeconds: state.penaltySeconds,
+                    finalMs: Math.max(0, finalMs),
+                    timestamp: Date.now(),
+                };
+                state.runs.push(run);
+                persistTimerRuns();
+
+                updateTimerDisplay();
+                updateTimerUI();
+                renderTimerLeaderboard();
+                showToast('✅ Run recorded for ' + state.currentDriverName);
+            }
+
+            function applyPenalty(seconds) {
+                if (state.timerStatus === 'idle') return;
+                if (state.timerStatus === 'stopped') {
+                    // Apply to the last completed run
+                    if (state.runs.length === 0) return;
+                    const lastRun = state.runs[state.runs.length - 1];
+                    if (lastRun.id === state.currentRunId) {
+                        lastRun.penaltySeconds += seconds;
+                        lastRun.finalMs = Math.max(0, lastRun.rawMs + (lastRun.penaltySeconds * 1000));
+                        state.penaltySeconds = lastRun.penaltySeconds;
+                        persistTimerRuns();
+                        updateTimerDisplay();
+                        renderTimerLeaderboard();
+                        showToast(`+${seconds}s penalty applied to last run`);
+                    }
+                } else {
+                    // Running or paused — apply to current run
+                    state.penaltySeconds += seconds;
+                    updateTimerDisplay();
+                    showToast(`+${seconds}s penalty applied`);
+                }
+            }
+
+            function updateTimerUI() {
+                const status = state.timerStatus;
+                $btnStart.disabled = (status === 'running');
+                $btnPause.disabled = (status !== 'running');
+                $btnResume.disabled = (status !== 'paused');
+                $btnStop.disabled = (status === 'idle' || status === 'stopped');
+                $btnPenalty5.disabled = (status === 'idle');
+                $btnPenalty3.disabled = (status === 'idle');
+                $driverNameInput.disabled = (status === 'running' || status === 'paused');
+
+                // Update button visibility
+                if (status === 'idle' || status === 'stopped') {
+                    $btnStart.style.display = '';
+                    $btnPause.style.display = 'none';
+                    $btnResume.style.display = 'none';
+                } else if (status === 'running') {
+                    $btnStart.style.display = 'none';
+                    $btnPause.style.display = '';
+                    $btnResume.style.display = 'none';
+                } else if (status === 'paused') {
+                    $btnStart.style.display = 'none';
+                    $btnPause.style.display = 'none';
+                    $btnResume.style.display = '';
+                }
+                if (status === 'stopped') {
+                    $btnStart.textContent = '▶ New Run';
+                } else {
+                    $btnStart.textContent = '▶ Start';
+                }
+                if (status === 'stopped') {
+                    $driverNameInput.value = state.currentDriverName || '';
+                }
+            }
+
+            function resetTimerData() {
+                if (state.runs.length > 0 || state.timerStatus !== 'idle') {
+                    if (!confirm(
+                            'Are you sure you want to reset ALL runs and clear the leaderboard? This cannot be undone.'
+                            )) {
+                        return;
+                    }
+                }
+                stopTimerDisplayLoop();
+                state.timerStatus = 'idle';
+                state.currentDriverName = '';
+                state.rawElapsedMs = 0;
+                state.runningStartTs = null;
+                state.penaltySeconds = 0;
+                state.currentRunId = null;
+                state.runs = [];
+                persistTimerRuns();
+                $driverNameInput.value = '';
+                $timerDisplay.textContent = '00:00.00';
+                $timerDisplay.classList.remove('running', 'paused', 'stopped');
+                $penaltyBadge.style.display = 'none';
+                updateTimerUI();
+                renderTimerLeaderboard();
+                showToast('🔄 All runs cleared');
+            }
+
+            function updateSessionModeLabel() {
+                if (state.sessionMode === 'cumulative') {
+                    $sessionModeLabel.textContent = 'Cumulative Best';
+                } else {
+                    $sessionModeLabel.textContent = 'Single Run';
+                }
+            }
+
+            function updateDriverDatalist() {
+                $driverDatalist.innerHTML = '';
+                state.previousDrivers.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    $driverDatalist.appendChild(option);
+                });
+            }
+
+            // ───────────────────────────────────────
+            // TIMER LEADERBOARD
+            // ───────────────────────────────────────
+            function renderTimerLeaderboard() {
+                if (state.runs.length === 0) {
+                    $timerLeaderboardContainer.innerHTML =
+                        '<p class="empty-state">No runs recorded yet. Start a race to begin!</p>';
+                    return;
+                }
+
+                let entries;
+                if (state.sessionMode === 'cumulative') {
+                    // Group by driver, pick best (minimum finalMs)
+                    const driverMap = new Map();
+                    state.runs.forEach(run => {
+                        const key = run.driverName.toLowerCase();
+                        const existing = driverMap.get(key);
+                        if (!existing || run.finalMs < existing.bestRun.finalMs) {
+                            driverMap.set(key, {
+                                driverName: run.driverName,
+                                bestRun: run,
+                                runCount: (existing ? existing.runCount : 0) + 1,
+                                totalPenalties: (existing ? existing.totalPenalties : 0) + run
+                                    .penaltySeconds,
+                            });
+                        } else {
+                            existing.runCount++;
+                            existing.totalPenalties += run.penaltySeconds;
+                        }
+                    });
+                    entries = Array.from(driverMap.values()).sort((a, b) => a.bestRun.finalMs - b.bestRun.finalMs);
+                } else {
+                    // Single-run mode: show all runs
+                    entries = state.runs
+                        .map(run => ({
+                            driverName: run.driverName,
+                            bestRun: run,
+                            runCount: 1,
+                            totalPenalties: run.penaltySeconds,
+                            isSingle: true,
+                        }))
+                        .sort((a, b) => a.bestRun.finalMs - b.bestRun.finalMs);
+                }
+
+                let html = `
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th class="rank-col">Rank</th>
+                            <th>Driver</th>
+                            <th>Best Time</th>
+                            <th>Raw Time</th>
+                            <th>Penalty</th>
+                            ${state.sessionMode === 'cumulative' ? '<th>Runs</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                entries.forEach((entry, index) => {
+                    const rank = index + 1;
+                    let rankClass = 'rank-other';
+                    if (rank === 1) rankClass = 'rank-1';
+                    if (rank === 2) rankClass = 'rank-2';
+                    if (rank === 3) rankClass = 'rank-3';
+                    const podiumClass = rank <= 3 ? ' podium-row' : '';
+                    const run = entry.bestRun;
+
+                    html += `
+                        <tr class="${podiumClass}">
+                            <td class="rank-col"><span class="rank-badge ${rankClass}">${rank}</span></td>
+                            <td><strong>${escapeHtml(run.driverName)}</strong></td>
+                            <td class="time-cell">${formatTime(run.finalMs)}</td>
+                            <td class="time-cell" style="color:var(--text2);">${formatTime(run.rawMs)}</td>
+                            <td class="penalty-cell">${run.penaltySeconds > 0 ? '+' + run.penaltySeconds + 's' : '—'}</td>
+                            ${state.sessionMode === 'cumulative' ? '<td style="color:var(--text2);">' + entry.runCount + '</td>' : ''}
+                        </tr>`;
+                });
+
+                html += '</tbody></table>';
+                $timerLeaderboardContainer.innerHTML = html;
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            // ───────────────────────────────────────
+            // SCOREBOARD ENGINE
+            // ───────────────────────────────────────
+            function renderPlayersList() {
+                $playersList.innerHTML = '';
+                state.players.forEach(player => {
+                    const card = document.createElement('div');
+                    card.className = 'player-card';
+                    card.innerHTML = `
+                        <input type="text" value="${escapeHtml(player.name)}" data-player-id="${player.id}" class="player-name-input" placeholder="Player name">
+                        <span class="player-points">${player.points}</span>
+                        <button class="btn-icon btn-sub" data-action="subtract" data-player-id="${player.id}" title="Subtract points">−</button>
+                        <button class="btn-icon btn-add" data-action="add" data-player-id="${player.id}" title="Add points">+</button>
+                        <button class="btn-remove-player" data-action="remove" data-player-id="${player.id}" title="Remove player">✕</button>
+                    `;
+                    $playersList.appendChild(card);
+                });
+                updateCustomEventDropdown();
+            }
+
+            function renderScoreboardLeaderboard() {
+                if (state.players.length === 0) {
+                    $scoreboardLeaderboardContainer.innerHTML =
+                        '<p class="empty-state">Add players to get started.</p>';
+                    return;
+                }
+                const sorted = [...state.players].sort((a, b) => b.points - a.points);
+                let html = `
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th class="rank-col">Rank</th>
+                            <th>Player</th>
+                            <th>Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                sorted.forEach((player, index) => {
+                    const rank = index + 1;
+                    let rankClass = 'rank-other';
+                    if (rank === 1) rankClass = 'rank-1';
+                    if (rank === 2) rankClass = 'rank-2';
+                    if (rank === 3) rankClass = 'rank-3';
+                    const podiumClass = rank <= 3 ? ' podium-row' : '';
+                    html += `
+                        <tr class="${podiumClass}">
+                            <td class="rank-col"><span class="rank-badge ${rankClass}">${rank}</span></td>
+                            <td><strong>${escapeHtml(player.name)}</strong></td>
+                            <td style="font-family:var(--font-mono);font-weight:700;font-size:1.1rem;">${player.points}</td>
+                        </tr>`;
+                });
+                html += '</tbody></table>';
+                $scoreboardLeaderboardContainer.innerHTML = html;
+            }
+
+            function renderHistoryList() {
+                $historyList.innerHTML = '';
+                if (state.scoreHistory.length === 0) {
+                    $historyList.innerHTML = '<li style="color:var(--text3);text-align:center;">No adjustments yet</li>';
+                    return;
+                }
+                // Show newest first
+                const reversed = [...state.scoreHistory].reverse();
+                reversed.forEach(entry => {
+                    const li = document.createElement('li');
+                    const amountClass = entry.amount >= 0 ? 'positive' : 'negative';
+                    const sign = entry.amount >= 0 ? '+' : '';
+                    const timeStr = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit',
+                        minute: '2-digit', second: '2-digit' });
+                    li.innerHTML = `
+                        <span><strong>${escapeHtml(entry.playerName)}</strong> <span class="history-amount ${amountClass}">${sign}${entry.amount}</span> ${escapeHtml(entry.reason || '')}</span>
+                        <span class="history-time">${timeStr}</span>
+                    `;
+                    $historyList.appendChild(li);
+                });
+            }
+
+            function updateCustomEventDropdown() {
+                $customEventPlayer.innerHTML = '';
+                state.players.forEach(player => {
+                    const option = document.createElement('option');
+                    option.value = player.id;
+                    option.textContent = player.name;
+                    $customEventPlayer.appendChild(option);
+                });
+                if (state.players.length > 0) {
+                    $customEventPlayer.value = state.players[0].id;
+                }
+            }
+
+            function addPointsToPlayer(playerId, amount, reason) {
+                const player = state.players.find(p => p.id === playerId);
+                if (!player) return;
+                player.points += amount;
+                const historyEntry = {
+                    playerId: player.id,
+                    playerName: player.name,
+                    amount: amount,
+                    reason: reason || '',
+                    timestamp: Date.now(),
+                };
+                state.scoreHistory.push(historyEntry);
+                persistScoreboard();
+                renderPlayersList();
+                renderScoreboardLeaderboard();
+                renderHistoryList();
+                updateCustomEventDropdown();
+            }
+
+            function handlePlayerAction(action, playerId) {
+                const increment = Math.max(1, parseInt($pointIncrement.value) || 1);
+                if (action === 'add') {
+                    addPointsToPlayer(playerId, increment, 'Manual add');
+                } else if (action === 'subtract') {
+                    addPointsToPlayer(playerId, -increment, 'Manual subtract');
+                } else if (action === 'remove') {
+                    if (state.players.length <= 2) {
+                        showToast('⚠️ Minimum 2 players required');
+                        return;
+                    }
+                    if (!confirm('Remove this player? Their score data will be lost.')) return;
+                    state.players = state.players.filter(p => p.id !== playerId);
+                    // Clean up history references
+                    state.scoreHistory = state.scoreHistory.filter(h => h.playerId !== playerId);
+                    persistScoreboard();
+                    renderPlayersList();
+                    renderScoreboardLeaderboard();
+                    renderHistoryList();
+                    updateCustomEventDropdown();
+                    showToast('Player removed');
+                }
+            }
+
+            function addPlayer() {
+                const newPlayer = {
+                    id: state.nextPlayerId++,
+                    name: 'Player ' + (state.players.length + 1),
+                    points: 0,
+                };
+                state.players.push(newPlayer);
+                persistScoreboard();
+                renderPlayersList();
+                renderScoreboardLeaderboard();
+                updateCustomEventDropdown();
+                // Focus the new player's name input
+                setTimeout(() => {
+                    const inputs = $playersList.querySelectorAll('.player-name-input');
+                    const lastInput = inputs[inputs.length - 1];
+                    if (lastInput) lastInput.focus();
+                }, 50);
+            }
+
+            function applyCustomEvent() {
+                const playerId = parseInt($customEventPlayer.value);
+                const points = parseInt($customEventPoints.value);
+                const reason = $customEventReason.value.trim();
+                if (isNaN(playerId) || isNaN(points) || points === 0) {
+                    showToast('⚠️ Please enter valid points');
+                    return;
+                }
+                if (!reason) {
+                    showToast('⚠️ Please enter a reason');
+                    return;
+                }
+                addPointsToPlayer(playerId, points, reason);
+                $customEventReason.value = '';
+                $customEventPoints.value = '5';
+                showToast('✅ Custom event applied');
+            }
+
+            function resetScores() {
+                if (!confirm('Reset ALL scores to zero? This cannot be undone.')) return;
+                state.players.forEach(p => { p.points = 0; });
+                state.scoreHistory = [];
+                persistScoreboard();
+                renderPlayersList();
+                renderScoreboardLeaderboard();
+                renderHistoryList();
+                updateCustomEventDropdown();
+                showToast('🔄 All scores reset');
+            }
+
+            function showFinalStandings() {
+                if (state.players.length === 0) {
+                    showToast('⚠️ No players to display');
+                    return;
+                }
+                const sorted = [...state.players].sort((a, b) => b.points - a.points);
+                const top3 = [sorted[0], sorted[1], sorted[2]].filter(Boolean);
+                // Reorder for display: 2nd, 1st, 3rd (podium layout)
+                const displayOrder = [];
+                if (top3[1]) displayOrder.push({ player: top3[1], place: 2, medal: '🥈', cls: 'second' });
+                if (top3[0]) displayOrder.push({ player: top3[0], place: 1, medal: '🥇', cls: 'first' });
+                if (top3[2]) displayOrder.push({ player: top3[2], place: 3, medal: '🥉', cls: 'third' });
+
+                $podiumDisplay.innerHTML = displayOrder.map(p => `
+                    <div class="podium-spot ${p.cls}">
+                        <span class="medal">${p.medal}</span>
+                        <div class="podium-name">${escapeHtml(p.player.name)}</div>
+                        <div class="podium-score">${p.player.points} pts</div>
+                        <div style="font-size:0.85rem;color:var(--text3);">${p.place}${p.place===1?'st':p.place===2?'nd':'rd'} Place</div>
+                    </div>
+                `).join('');
+
+                $finalStandingsOverlay.classList.add('active');
+            }
+
+            function hideFinalStandings() {
+                $finalStandingsOverlay.classList.remove('active');
+            }
+
+            // ───────────────────────────────────────
+            // EVENT LISTENERS
+            // ───────────────────────────────────────
+            // Timer controls
+            $btnStart.addEventListener('click', startTimer);
+            $btnPause.addEventListener('click', pauseTimer);
+            $btnResume.addEventListener('click', resumeTimer);
+            $btnStop.addEventListener('click', stopTimer);
+            $btnPenalty5.addEventListener('click', () => applyPenalty(5));
+            $btnPenalty3.addEventListener('click', () => applyPenalty(3));
+            $btnResetTimer.addEventListener('click', resetTimerData);
+
+            // Session mode toggle
+            $sessionModeToggle.addEventListener('change', () => {
+                state.sessionMode = $sessionModeToggle.checked ? 'single' : 'cumulative';
+                updateSessionModeLabel();
+                persistSessionMode();
+                renderTimerLeaderboard();
+                showToast(state.sessionMode === 'cumulative' ?
+                    'Switched to Cumulative Best mode' : 'Switched to Single Run mode');
+            });
+
+            // Scoreboard player list delegation
+            $playersList.addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const playerId = parseInt(btn.dataset.playerId);
+                if (action && playerId) {
+                    handlePlayerAction(action, playerId);
+                }
+            });
+
+            // Player name editing
+            $playersList.addEventListener('input', (e) => {
+                if (!e.target.classList.contains('player-name-input')) return;
+                const playerId = parseInt(e.target.dataset.playerId);
+                const player = state.players.find(p => p.id === playerId);
+                if (player) {
+                    player.name = e.target.value || 'Unnamed';
+                    persistScoreboard();
+                    renderScoreboardLeaderboard();
+                    updateCustomEventDropdown();
+                    // Update history entries for this player
+                    state.scoreHistory.forEach(h => {
+                        if (h.playerId === playerId) h.playerName = player.name;
+                    });
+                    persistScoreboard();
+                    renderHistoryList();
+                }
+            });
+
+            $btnAddPlayer.addEventListener('click', addPlayer);
+            $btnApplyCustom.addEventListener('click', applyCustomEvent);
+            $btnResetScores.addEventListener('click', resetScores);
+            $btnEndSession.addEventListener('click', showFinalStandings);
+            $btnCloseOverlay.addEventListener('click', hideFinalStandings);
+            $finalStandingsOverlay.addEventListener('click', (e) => {
+                if (e.target === $finalStandingsOverlay) hideFinalStandings();
+            });
+
+            // History toggle
+            $btnToggleHistory.addEventListener('click', () => {
+                const isOpen = $historyPanel.classList.toggle('open');
+                $historyChevron.textContent = isOpen ? '▼' : '▶';
+                if (isOpen) renderHistoryList();
+            });
+
+            // Point increment change
+            $pointIncrement.addEventListener('change', () => {
+                state.pointIncrement = Math.max(1, parseInt($pointIncrement.value) || 1);
+                $pointIncrement.value = state.pointIncrement;
+                persistScoreboard();
+            });
+            $pointIncrement.addEventListener('input', () => {
+                const val = parseInt($pointIncrement.value);
+                if (!isNaN(val) && val >= 1) {
+                    state.pointIncrement = val;
+                    persistScoreboard();
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                // Only handle when not in an input/select
+                const tag = document.activeElement?.tagName?.toLowerCase();
+                if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+
+                if (e.key === ' ' && state.timerStatus === 'running') {
+                    e.preventDefault();
+                    pauseTimer();
+                } else if (e.key === ' ' && state.timerStatus === 'paused') {
+                    e.preventDefault();
+                    resumeTimer();
+                } else if (e.key === 'Enter' && (state.timerStatus === 'idle' || state.timerStatus ===
+                        'stopped')) {
+                    e.preventDefault();
+                    if (document.getElementById('timer-view').classList.contains('active')) {
+                        startTimer();
+                    }
+                } else if (e.key === 'Escape' && state.timerStatus === 'stopped') {
+                    e.preventDefault();
+                    // Reset for new run
+                    state.timerStatus = 'idle';
+                    state.penaltySeconds = 0;
+                    state.currentRunId = null;
+                    state.rawElapsedMs = 0;
+                    $timerDisplay.textContent = '00:00.00';
+                    $timerDisplay.classList.remove('running', 'paused', 'stopped');
+                    $penaltyBadge.style.display = 'none';
+                    updateTimerUI();
+                }
+            });
+
+            // ───────────────────────────────────────
+            // INITIALIZATION
+            // ───────────────────────────────────────
+            function init() {
+                loadAllState();
+                updateTimerUI();
+                updateTimerDisplay();
+                renderTimerLeaderboard();
+                renderPlayersList();
+                renderScoreboardLeaderboard();
+                renderHistoryList();
+                updateCustomEventDropdown();
+                updateSessionModeLabel();
+                // Ensure correct initial view
+                showView('menu');
+                // Sync UI elements
+                $sessionModeToggle.checked = (state.sessionMode === 'single');
+                $pointIncrement.value = state.pointIncrement;
+                updateDriverDatalist();
+            }
+
+            // Clean up intervals on page unload
+            window.addEventListener('beforeunload', () => {
+                stopTimerDisplayLoop();
+            });
+
+            // Handle page visibility change (pause timer if tab hidden)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && state.timerStatus === 'running') {
+                    pauseTimer();
+                    showToast('⏸ Timer paused (tab hidden)');
+                }
+            });
+
+            // Start the app
+            init();
+
+            // ───────────────────────────────────────
+            // PUBLIC API (for debugging)
+            // ───────────────────────────────────────
+            window.__rcApp = {
+                getState: () => state,
+                showView,
+                resetAll: () => {
+                    stopTimerDisplayLoop();
+                    state.timerStatus = 'idle';
+                    state.currentDriverName = '';
+                    state.rawElapsedMs = 0;
+                    state.runningStartTs = null;
+                    state.penaltySeconds = 0;
+                    state.currentRunId = null;
+                    state.runs = [];
+                    state.sessionMode = 'cumulative';
+                    state.previousDrivers = [];
+                    state.players = [
+                        { id: 1, name: 'Player 1', points: 0 },
+                        { id: 2, name: 'Player 2', points: 0 },
+                    ];
+                    state.nextPlayerId = 3;
+                    state.scoreHistory = [];
+                    state.pointIncrement = 1;
+                    Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+                    persistScoreboard();
+                    persistTimerRuns();
+                    persistSessionMode();
+                    persistPreviousDrivers();
+                    updateTimerUI();
+                    updateTimerDisplay();
+                    renderTimerLeaderboard();
+                    renderPlayersList();
+                    renderScoreboardLeaderboard();
+                    renderHistoryList();
+                    updateCustomEventDropdown();
+                    updateSessionModeLabel();
+                    $sessionModeToggle.checked = false;
+                    $pointIncrement.value = 1;
+                    $driverNameInput.value = '';
+                    $timerDisplay.textContent = '00:00.00';
+                    $timerDisplay.classList.remove('running', 'paused', 'stopped');
+                    $penaltyBadge.style.display = 'none';
+                    $historyPanel.classList.remove('open');
+                    $historyChevron.textContent = '▶';
+                    updateDriverDatalist();
+                    showView('menu');
+                    showToast('🔄 All data reset');
+                },
+            };
+
+            console.log('🏁 RC Race Control initialized successfully');
+            console.log('   Modes: Race Timer | Points Scoreboard');
+            console.log('   Data persisted to LocalStorage');
+            console.log('   Keyboard shortcuts: Space = Pause/Resume, Enter = Start, Esc = Clear stopped timer');
+            console.log('   Access window.__rcApp for debugging');
+        })();
+    </script>
+</body>
+</html>
